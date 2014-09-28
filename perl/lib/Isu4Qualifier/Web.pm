@@ -146,6 +146,7 @@ sub last_login {
       $self->redis->get(sprintf('login_log:user:%d', $user_id));
   my $log =  $self->msgpack->unpack($data);
   $log->{created_at} = localtime($log->{epoch})->strftime('%Y-%m-%d %H:%M:%S');
+  return $log;
 };
 
 sub banned_ips {
