@@ -1,5 +1,19 @@
-: cascade base
-: around content -> {
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/stylesheets/bootstrap.min.css">
+    <link rel="stylesheet" href="/stylesheets/bootflat.min.css">
+    <link rel="stylesheet" href="/stylesheets/isucon-bank.css">
+    <title>isucon4</title>
+  </head>
+  <body>
+    <div class="container">
+      <h1 id="topbar">
+        <a href="/"><img src="/images/isucon-bank.png" alt="いすこん銀行 オンラインバンキングサービス"></a>
+      </h1>
+      <!-- ^^base.tx -->
+
 <div id="be-careful-phising" class="panel panel-danger">
   <div class="panel-heading">
     <span class="hikaru-mozi">偽画面にご注意ください！</span>
@@ -19,7 +33,7 @@
   <div id="notice-message" class="alert alert-danger" role="alert"><: $flash :></div>
 : }
 
-<div class="container">
+  <div class="container">
   <form class="form-horizontal" role="form" action="/login" method="POST">
     <div class="form-group">
       <label for="input-username" class="col-sm-3 control-label">お客様ご契約ID</label>
@@ -40,4 +54,9 @@
     </div>
   </form>
 </div>
-: }
+
+    <!-- vvbase.tx -->
+    </div>
+
+  </body>
+</html>
