@@ -4,24 +4,9 @@
     <meta charset="UTF-8">
     <title>isucon4</title>
     <script>
-      window.onload = function() {
-        var head = document.getElementsByTagName("head")[0];
-
-        var bootstrap = document.createElement("link");
-        bootstrap.setAttribute("rel", "stylesheet");
-        bootstrap.setAttribute("href", "/stylesheets/bootstrap.min.css");
-        head.appendChild(bootstrap);
-
-        var bootflat = document.createElement("link");
-        bootflat.setAttribute("rel", "stylesheet");
-        bootflat.setAttribute("href", "/stylesheets/bootflat.min.css");
-        head.appendChild(bootflat);
-
-        var bank = document.createElement("link");
-        bank.setAttribute("rel", "stylesheet");
-        bank.setAttribute("href", "/stylesheets/isucon-bank.css");
-        head.appendChild(bank);
-      }
+      document.write('<link rel="stylesheet" href="/stylesheets/bootstrap.min.css">');
+      document.write('<link rel="stylesheet" href="/stylesheets/bootflat.min.css">');
+      document.write('<link rel="stylesheet" href="/stylesheets/isucon-bank.css">');
     </script>
   </head>
   <body>
