@@ -8,6 +8,8 @@ use DBIx::Sunny;
 use Digest::SHA qw/ sha256_hex /;
 use File::Basename qw/dirname/;
 
+user_cache();
+
 sub config {
   my ($self) = @_;
   $self->{_config} ||= {
@@ -16,21 +18,27 @@ sub config {
   };
 };
 
-sub pass_table {
+sub user_cache {
   my ($self) = @_;
 
-  return $self->{_pass_table} if $self->{_pass_table};
+  return $self->{_user_cache} if $self->{_user_cache};
 
   open my $tsv, '<', dirname(__FILE__) . '/../../../sql/dummy_users.tsv';
 
   while (my $line = <$tsv>) {
-    my ($id, undef, $pass) = split "\t", $line;
-    $self->{_pass_table}{$id} = $pass;
+    my ($id, $login, $pass) = split "\t", $line;
+    $self->{_user_cache}{$login} = { id => $id, password => $pass };
   }
 
   close $tsv;
 
-  return $self->{_pass_table};
+  return $self->{_user_cache};
+}
+
+sub cached_user {
+  my ($self, $login) = @_;
+
+  return $self->user_cache()->{$login};
 }
 
 sub db {
@@ -82,24 +90,25 @@ sub ip_banned {
 
 sub attempt_login {
   my ($self, $login, $password, $ip) = @_;
-  my $user = $self->db->select_row('SELECT * FROM users WHERE login = ?', $login);
+
+  my $user_data = $self->cached_user($login);
 
   if ($self->ip_banned($ip)) {
-    $self->login_log(0, $login, $ip, $user ? $user->{id} : undef);
+    $self->login_log(0, $login, $ip, $user_data ? $user_data->{id} : undef);
     return undef, 'banned';
   }
 
-  if ($self->user_locked($user)) {
-    $self->login_log(0, $login, $ip, $user->{id});
+  if ($self->user_locked($user_data)) {
+    $self->login_log(0, $login, $ip, $user_data->{id});
     return undef, 'locked';
   }
 
-  if ($user && $self->password_ok($user, $password)) {
-    $self->login_log(1, $login, $ip, $user->{id});
-    return $user, undef;
+  if ($user_data && $password eq $user_data->{password}) {
+    $self->login_log(1, $login, $ip, $user_data->{id});
+    return $user_data, undef;
   }
-  elsif ($user) {
-    $self->login_log(0, $login, $ip, $user->{id});
+  elsif ($user_data) {
+    $self->login_log(0, $login, $ip, $user_data->{id});
     return undef, 'wrong_password';
   }
   else {
@@ -211,14 +220,14 @@ post '/login' => sub {
   my ($self, $c) = @_;
   my $msg;
 
-  my ($user, $err) = $self->attempt_login(
+  my ($user_data, $err) = $self->attempt_login(
     $c->req->param('login'),
     $c->req->param('password'),
     $c->req->address
   );
 
-  if ($user && $user->{id}) {
-    $c->req->env->{'psgix.session'}->{user_id} = $user->{id};
+  if ($user_data && $user_data->{id}) {
+    $c->req->env->{'psgix.session'}->{user_id} = $user_data->{id};
     $c->redirect('/mypage');
   }
   else {
