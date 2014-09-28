@@ -7,9 +7,27 @@ use Kossy;
 use DBIx::Sunny;
 use Digest::SHA qw/ sha256_hex /;
 use File::Basename qw/dirname/;
+use Redis::Fast;
+use Data::MessagePack;
 
 our $_user_cache;
 user_cache();
+
+sub redis {
+    my ($self) = @_;
+
+    $self->{_redis} ||= do {
+        Redis::Fast->new
+    };
+}
+
+sub msgpack {
+    my ($self) = @_;
+
+    $self->{_msgpack} ||= do {
+        Data::MessagePack->new->prefer_integer;
+    }
+}
 
 sub config {
   my ($self) = @_;
@@ -73,20 +91,24 @@ sub password_ok {
 
 sub user_locked {
   my ($self, $user) = @_;
-  my $log = $self->db->select_row(
-    'SELECT COUNT(1) AS failures FROM login_log WHERE user_id = ? AND id > IFNULL((select id from login_log where user_id = ? AND succeeded = 1 ORDER BY id DESC LIMIT 1), 0)',
-    $user->{'id'}, $user->{'id'});
+#  my $log = $self->db->select_row(
+#    'SELECT COUNT(1) AS failures FROM login_log WHERE user_id = ? AND id > IFNULL((select id from login_log where user_id = ? AND succeeded = 1 ORDER BY id DESC LIMIT 1), 0)',
+#    $user->{'id'}, $user->{'id'});
+#  $self->config->{user_lock_threshold} <= $log->{failures};
 
-  $self->config->{user_lock_threshold} <= $log->{failures};
+  my $failures = $self->redis->get(sprintf 'failure:user:%d', $user->{id});
+  $self->config->{user_lock_threshold} <= $failures;
 };
 
 sub ip_banned {
   my ($self, $ip) = @_;
-  my $log = $self->db->select_row(
-    'SELECT COUNT(1) AS failures FROM login_log WHERE ip = ? AND id > IFNULL((select id from login_log where ip = ? AND succeeded = 1 ORDER BY id DESC LIMIT 1), 0)',
-    $ip, $ip);
+#  my $log = $self->db->select_row(
+#    'SELECT COUNT(1) AS failures FROM login_log WHERE ip = ? AND id > IFNULL((select id from login_log where ip = ? AND succeeded = 1 ORDER BY id DESC LIMIT 1), 0)',
+#    $ip, $ip);
+#  $self->config->{ip_ban_threshold} <= $log->{failures};
 
-  $self->config->{ip_ban_threshold} <= $log->{failures};
+  my $failures = $self->redis->get(sprintf 'failure:ip:%s', $ip);
+  $self->config->{ip_ban_threshold} <= $failures;
 };
 
 sub attempt_login {
@@ -121,11 +143,13 @@ sub attempt_login {
 sub last_login {
   my ($self, $user_id) = @_;
 
-  my $logs = $self->db->select_all(
-   'SELECT * FROM login_log WHERE succeeded = 1 AND user_id = ? ORDER BY id DESC LIMIT 2',
-   $user_id);
+#  my $logs = $self->db->select_all(
+#   'SELECT * FROM login_log WHERE succeeded = 1 AND user_id = ? ORDER BY id DESC LIMIT 2',
+#   $user_id);
+#  @$logs[-1];
 
-  @$logs[-1];
+  return $self->msgpack->unpack($self->redis->get(sprintf 'login_log:user:%d', $user_id);
+
 };
 
 sub banned_ips {
@@ -176,10 +200,31 @@ sub locked_users {
 
 sub login_log {
   my ($self, $succeeded, $login, $ip, $user_id) = @_;
-  $self->db->query(
-    'INSERT INTO login_log (`created_at`, `user_id`, `login`, `ip`, `succeeded`) VALUES (NOW(),?,?,?,?)',
-    $user_id, $login, $ip, ($succeeded ? 1 : 0)
-  );
+#  $self->db->query(
+#    'INSERT INTO login_log (`created_at`, `user_id`, `login`, `ip`, `succeeded`) VALUES (NOW(),?,?,?,?)',
+#    $user_id, $login, $ip, ($succeeded ? 1 : 0)
+#  );
+
+  $self->redis->lpush('login_logs', $self->msgpack->pack({
+      user_id => $user_id,
+      login => $login,
+      ip => $ip,
+      succeeded => ($succeeded ? 1 : 0),
+  }));
+
+  if ($succeeded) {
+      $self->redis->set(sprintf('failure:ip:%s', $ip), 0);
+      $self->redis->set(sprintf('failure:user:%d', $user_id), 0);
+      $self->redis->set(sprintf('login_log:user:%d', $user_id), $self->msgpack->pack({
+          user_id => $user_id,
+          login => $login,
+          ip => $ip,
+          succeeded => ($succeeded ? 1 : 0),
+      }));
+  } else {
+      $self->redis->incr(sprintf('failure:ip:%s', $ip));
+      $self->redis->incr(sprintf('failure:user:%d', $user_id));
+  }
 };
 
 sub set_flash {
@@ -255,6 +300,17 @@ get '/mypage' => [qw(session)] => sub {
 
 get '/report' => sub {
   my ($self, $c) = @_;
+
+  my @login_logs = $self->redis->lrange('login_logs', 0, -1);
+  while (my $data = shift @login_logs)) {
+      my $log = $self->msgpack->unpack($data);
+
+      $self->db->query(
+          'INSERT INTO login_log (`created_at`, `user_id`, `login`, `ip`, `succeeded`) VALUES (NOW(),?,?,?,?)',
+          $log->{user_id}, $log->{login}, $log->{ip}, $log->{succeeded},
+      );
+  }
+
   $c->render_json({
     banned_ips => $self->banned_ips,
     locked_users => $self->locked_users,
