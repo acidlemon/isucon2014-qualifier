@@ -218,10 +218,10 @@ post '/login' => sub {
 get '/mypage' => [qw(session)] => sub {
   my ($self, $c) = @_;
   my $user_id = $c->req->env->{'psgix.session'}->{user_id};
-  my $user = $self->current_user($user_id);
+  #my $user = $self->current_user($user_id);
   my $msg;
 
-  if ($user) {
+  if ($user_id) {
     $c->render('mypage.tx', { last_login => $self->last_login($user_id) });
   }
   else {
