@@ -54,11 +54,6 @@ sub db {
   };
 }
 
-sub calculate_password_hash {
-  my ($password, $salt) = @_;
-  sha256_hex($password . ':' . $salt);
-};
-
 sub password_ok {
   my ($self, $user, $pass) = @_;
 
