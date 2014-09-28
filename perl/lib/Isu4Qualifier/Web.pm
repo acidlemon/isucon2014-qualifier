@@ -302,6 +302,7 @@ get '/report' => sub {
           $log->{user_id}, $log->{login}, $log->{ip}, $log->{succeeded},
       );
   }
+  $self->redis->del('login_logs');
 
   $c->render_json({
     banned_ips => $self->banned_ips,

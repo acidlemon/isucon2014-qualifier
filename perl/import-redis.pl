@@ -34,8 +34,8 @@ for (my $user_id = 1; $user_id <= 200000; $user_id++) {
 }
 
 # all ips
-my @ips = $db->select_all('SELECT ip FROM login_log GROUP BY ip');
-while (my $ip = shift @ips) {
+my $ips = $db->select_all('SELECT ip FROM login_log GROUP BY ip');
+while (my $ip = shift @$ips) {
 
   my $log = $db->select_row(
     'SELECT COUNT(1) AS failures FROM login_log WHERE ip = ? AND id > IFNULL((select id from login_log where ip = ? AND succeeded = 1 ORDER BY id DESC LIMIT 1), 0)',
