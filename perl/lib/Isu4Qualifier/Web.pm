@@ -6,7 +6,7 @@ use utf8;
 use Kossy;
 use DBIx::Sunny;
 use Digest::SHA qw/ sha256_hex /;
-use Data::Dumper;
+use File::Basename qw/dirname/;
 
 sub config {
   my ($self) = @_;
@@ -15,6 +15,23 @@ sub config {
     ip_ban_threshold => $ENV{'ISU4_IP_BAN_THRESHOLD'} || 10
   };
 };
+
+sub pass_table {
+  my ($self) = @_;
+
+  return $self->{_pass_table} if $self->{_pass_table};
+
+  open my $tsv, '<', dirname(__FILE__) . '/../../../sql/dummy_users.tsv';
+
+  while (my $line = <$tsv>) {
+    my ($id, undef, $pass) = split "\t", $line;
+    $self->{_pass_table}{$id} = $pass;
+  }
+
+  close $tsv;
+
+  return $self->{_pass_table};
+}
 
 sub db {
   my ($self) = @_;
@@ -41,6 +58,14 @@ sub calculate_password_hash {
   my ($password, $salt) = @_;
   sha256_hex($password . ':' . $salt);
 };
+
+sub password_ok {
+  my ($self, $user, $pass) = @_;
+
+  my $correct_pass = $self->pass_table()->{$user->{id}} || "";
+
+  return $correct_pass eq $pass;
+}
 
 sub user_locked {
   my ($self, $user) = @_;
@@ -74,7 +99,7 @@ sub attempt_login {
     return undef, 'locked';
   }
 
-  if ($user && calculate_password_hash($password, $user->{salt}) eq $user->{password_hash}) {
+  if ($user && $self->password_ok($user, $password)) {
     $self->login_log(1, $login, $ip, $user->{id});
     return $user, undef;
   }
