@@ -94,6 +94,16 @@ sub attempt_login {
 
   my $user_data = $self->cached_user($login);
 
+  if (! $user_data) {
+    $self->login_log(0, $login, $ip);
+    return undef, 'wrong_login';
+  }
+
+  unless ($user_data && $password eq $user_data->{password}) {
+    $self->login_log(0, $login, $ip, $user_data->{id});
+    return undef, 'wrong_password';
+  }
+
   if ($self->ip_banned($ip)) {
     $self->login_log(0, $login, $ip, $user_data ? $user_data->{id} : undef);
     return undef, 'banned';
@@ -104,18 +114,8 @@ sub attempt_login {
     return undef, 'locked';
   }
 
-  if ($user_data && $password eq $user_data->{password}) {
-    $self->login_log(1, $login, $ip, $user_data->{id});
-    return $user_data, undef;
-  }
-  elsif ($user_data) {
-    $self->login_log(0, $login, $ip, $user_data->{id});
-    return undef, 'wrong_password';
-  }
-  else {
-    $self->login_log(0, $login, $ip);
-    return undef, 'wrong_login';
-  }
+  $self->login_log(1, $login, $ip, $user_data->{id});
+  return $user_data, undef;
 };
 
 sub last_login {
