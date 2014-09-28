@@ -10,6 +10,7 @@ use File::Basename qw/dirname/;
 use Redis::Fast;
 use Data::MessagePack;
 use 5.014;
+use Time::Piece;
 
 our $_user_cache;
 user_cache();
@@ -144,7 +145,7 @@ sub last_login {
   my $data = $self->redis->get(sprintf('login_log:user:%d:recent', $user_id)) //
       $self->redis->get(sprintf('login_log:user:%d', $user_id));
   my $log =  $self->msgpack->unpack($data);
-
+  $log->{created_at} = localtime($log->{epoch})->strftime('%Y-%m-%d %H:%M:%S');
 };
 
 sub banned_ips {
@@ -200,11 +201,13 @@ sub login_log {
 #    $user_id, $login, $ip, ($succeeded ? 1 : 0)
 #  );
 
+  my $now = CORE::time;
   $self->redis->lpush('login_logs', $self->msgpack->pack({
       user_id => $user_id,
       login => $login,
       ip => $ip,
       succeeded => ($succeeded ? 1 : 0),
+      epoch => $now,
   }));
 
   if ($succeeded) {
@@ -219,6 +222,7 @@ sub login_log {
           login => $login,
           ip => $ip,
           succeeded => ($succeeded ? 1 : 0),
+          epoch => $now,
       }));
   } else {
       $self->redis->incr(sprintf('failure:ip:%s', $ip));
@@ -305,7 +309,8 @@ get '/report' => sub {
       my $log = $self->msgpack->unpack($data);
 
       $self->db->query(
-          'INSERT INTO login_log (`created_at`, `user_id`, `login`, `ip`, `succeeded`) VALUES (NOW(),?,?,?,?)',
+          'INSERT INTO login_log (`created_at`, `user_id`, `login`, `ip`, `succeeded`) VALUES (?,?,?,?,?)',
+          localtime($log->{epoch})->strftime('%Y-%m-%d %H:%M:%S'),
           $log->{user_id}, $log->{login}, $log->{ip}, $log->{succeeded},
       );
   }
