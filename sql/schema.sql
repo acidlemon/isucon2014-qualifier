@@ -15,4 +15,4 @@ CREATE TABLE IF NOT EXISTS `login_log` (
   `succeeded` tinyint NOT NULL,
   INDEX `login_log_user_id_succeeded` (`user_id`, `succeeded`),
   INDEX `login_log_ip_succeeded` (`ip`, `succeeded`)
-) DEFAULT CHARSET=utf8;
+) Engine=MyISAM DEFAULT CHARSET=utf8;
