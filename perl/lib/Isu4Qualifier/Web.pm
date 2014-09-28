@@ -140,7 +140,7 @@ sub last_login {
 #   $user_id);
 #  @$logs[-1];
 
-  return $self->msgpack->unpack($self->redis->get(sprintf 'login_log:user:%d', $user_id);
+  return $self->msgpack->unpack($self->redis->get(sprintf 'login_log:user:%d', $user_id));
 
 };
 
@@ -294,7 +294,7 @@ get '/report' => sub {
   my ($self, $c) = @_;
 
   my @login_logs = $self->redis->lrange('login_logs', 0, -1);
-  while (my $data = shift @login_logs)) {
+  while (my $data = shift @login_logs) {
       my $log = $self->msgpack->unpack($data);
 
       $self->db->query(
