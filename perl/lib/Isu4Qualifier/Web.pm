@@ -8,6 +8,7 @@ use DBIx::Sunny;
 use Digest::SHA qw/ sha256_hex /;
 use File::Basename qw/dirname/;
 
+our $_user_cache;
 user_cache();
 
 sub config {
@@ -21,18 +22,18 @@ sub config {
 sub user_cache {
   my ($self) = @_;
 
-  return $self->{_user_cache} if $self->{_user_cache};
+  return $_user_cache if $_user_cache;
 
   open my $tsv, '<', dirname(__FILE__) . '/../../../sql/dummy_users.tsv';
 
   while (my $line = <$tsv>) {
     my ($id, $login, $pass) = split "\t", $line;
-    $self->{_user_cache}{$login} = { id => $id, password => $pass };
+    $_user_cache->{$login} = { id => $id, password => $pass };
   }
 
   close $tsv;
 
-  return $self->{_user_cache};
+  return $_user_cache;
 }
 
 sub cached_user {
