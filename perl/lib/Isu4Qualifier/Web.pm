@@ -140,7 +140,7 @@ sub last_login {
 #   $user_id);
 #  @$logs[-1];
 
-  return $self->msgpack->unpack($self->redis->get(sprintf 'login_log:user:%d', $user_id));
+  my $log =  $self->msgpack->unpack($self->redis->get(sprintf('login_log:user:%d:recent', $user_id)));
 
 };
 
@@ -207,6 +207,7 @@ sub login_log {
   if ($succeeded) {
       $self->redis->set(sprintf('failure:ip:%s', $ip), 0);
       $self->redis->set(sprintf('failure:user:%d', $user_id), 0);
+      $self->redis->rename(sprintf('login_log:user:%d', $user_id), sprintf('login_log:user:%d:recent', $user_id));
       $self->redis->set(sprintf('login_log:user:%d', $user_id), $self->msgpack->pack({
           user_id => $user_id,
           login => $login,
