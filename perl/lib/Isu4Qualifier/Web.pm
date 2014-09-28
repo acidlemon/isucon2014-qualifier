@@ -63,14 +63,6 @@ sub db {
   };
 }
 
-sub password_ok {
-  my ($self, $user, $pass) = @_;
-
-  my $correct_pass = $self->pass_table()->{$user->{id}} || "";
-
-  return $correct_pass eq $pass;
-}
-
 sub user_locked {
   my ($self, $user) = @_;
   my $log = $self->db->select_row(
