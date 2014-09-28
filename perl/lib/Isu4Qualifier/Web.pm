@@ -203,7 +203,7 @@ sub login_log {
 #  );
 
   my $now = CORE::time;
-  $self->redis->lpush('login_logs', $self->msgpack->pack({
+  $self->redis->rpush('login_logs', $self->msgpack->pack({
       user_id => $user_id,
       login => $login,
       ip => $ip,
