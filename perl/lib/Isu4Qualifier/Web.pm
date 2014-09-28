@@ -118,12 +118,6 @@ sub attempt_login {
   }
 };
 
-sub current_user {
-  my ($self, $user_id) = @_;
-
-  $self->db->select_row('SELECT * FROM users WHERE id = ?', $user_id);
-};
-
 sub last_login {
   my ($self, $user_id) = @_;
 
@@ -248,7 +242,6 @@ post '/login' => sub {
 get '/mypage' => [qw(session)] => sub {
   my ($self, $c) = @_;
   my $user_id = $c->req->env->{'psgix.session'}->{user_id};
-  #my $user = $self->current_user($user_id);
   my $msg;
 
   if ($user_id) {
